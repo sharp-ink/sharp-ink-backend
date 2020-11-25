@@ -16,11 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 class UserDaoTest {
 
-  @Autowired
-  UserDao userDao;
-
-  @Autowired
-  private TestEntityManager entityManager;
+  @Autowired UserDao userDao;
+  @Autowired TestEntityManager entityManager;
 
   @BeforeEach
   void init() {
@@ -31,12 +28,12 @@ class UserDaoTest {
       User.builder().nickname("Dany T.").email("mother_of_dragons@westeros.org").password("dracarys").build()
     ).forEach(entityManager::persist);
     entityManager.flush();
-    //@formatter:off
+    //@formatter:on
   }
 
   @Test
-  @DisplayName("Should return user found by login")
-  void findByCredentials_LoginExists() {
+  @DisplayName("Should return user if login exists and password matches")
+  void findByCredentials_LoginExistsAndCorrectPassword() {
     // when
     Optional<User> userOptional = userDao.findByCredentials("TheBitchWhoWantedToBeAQueen", "POW3R_15_POW3R");
 
@@ -49,8 +46,8 @@ class UserDaoTest {
   }
 
   @Test
-  @DisplayName("Should return user found by email")
-  void findByCredentials_EmailExists() {
+  @DisplayName("Should return user if email exists and password matches")
+  void findByCredentials_EmailExistsAndCorrectPassword() {
     // when
     Optional<User> userOptional = userDao.findByCredentials("ned_stark@westeros.org", "Winteriscoming123");
 

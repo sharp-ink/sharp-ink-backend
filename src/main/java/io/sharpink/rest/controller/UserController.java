@@ -1,7 +1,6 @@
 package io.sharpink.rest.controller;
 
 import io.sharpink.rest.dto.request.user.UserPatchRequest;
-import io.sharpink.rest.dto.response.story.StoryResponse;
 import io.sharpink.rest.dto.response.user.UserResponse;
 import io.sharpink.rest.dto.shared.user.preferences.UserPreferencesDto;
 import io.sharpink.rest.exception.CustomApiError;
@@ -10,7 +9,13 @@ import io.sharpink.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -36,13 +41,17 @@ public class UserController {
       UserResponse user = userService.getUser(id);
       return new ResponseEntity<>(user, HttpStatus.OK);
     } catch (NotFound404Exception e) {
-      return new ResponseEntity<>(new CustomApiError(e.getReason().toString(), e.getMessage()), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>(new CustomApiError(e.getReason().name(), e.getMessage()), HttpStatus.NOT_FOUND);
     }
   }
 
   @GetMapping("/{id}/stories")
-  public List<StoryResponse> getStories(@PathVariable Long id) {
-    return userService.getStories(id);
+  public ResponseEntity<?> getStories(@PathVariable Long id) {
+    try {
+      return new ResponseEntity<>(userService.getStories(id), HttpStatus.OK);
+    } catch (NotFound404Exception e) {
+      return new ResponseEntity<>(new CustomApiError(e.getReason().name(), e.getMessage()), HttpStatus.NOT_FOUND);
+    }
   }
 
   @PutMapping("/{id}/profile")

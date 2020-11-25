@@ -1,4 +1,4 @@
-package io.sharpink.persistence.entity.story;
+package io.sharpink.shared.story;
 
 /**
  * Cette Enum représente les différents états possibles pour une histoire
@@ -19,5 +19,4 @@ public enum StoryStatus {
   public String value() {
     return value;
   }
-
 }

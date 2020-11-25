@@ -1,4 +1,4 @@
-package io.sharpink.rest.controller;
+package io.sharpink;
 
 import io.sharpink.persistence.entity.user.User;
 import io.sharpink.persistence.entity.user.UserPreferences;

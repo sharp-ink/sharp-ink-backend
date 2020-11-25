@@ -2,15 +2,16 @@ package io.sharpink.mapper.story;
 
 import io.sharpink.persistence.entity.story.ChaptersLoadingStrategy;
 import io.sharpink.persistence.entity.story.Story;
-import io.sharpink.persistence.entity.story.StoryStatus;
-import io.sharpink.persistence.entity.story.StoryType;
 import io.sharpink.rest.dto.request.story.StoryRequest;
 import io.sharpink.rest.dto.response.story.StoryResponse;
+import io.sharpink.shared.story.StoryStatus;
+import io.sharpink.shared.story.StoryType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.List;
+
+import static java.util.stream.Collectors.toList;
 
 // @formatter:off
 @Component
@@ -27,8 +28,8 @@ public class StoryMapper {
     StoryResponse target = StoryResponse.builder()
       .id(source.getId())
       .title(source.getTitle())
-      .type(source.getType().value())
-      .status(source.getStatus().value())
+      .type(source.getType() != null ? source.getType().value() : null)
+      .status(source.getStatus() != null ? source.getStatus().value() : null)
       .summary(source.getSummary())
       .thumbnail(source.getThumbnail())
       .published(source.isPublished())
@@ -43,7 +44,7 @@ public class StoryMapper {
 
 		if (chaptersLoadingStrategy == ChaptersLoadingStrategy.ALL) {
 			target.setChapters(chapterMapper.toChapterResponseList(source.getChapters()));
-		} else if (chaptersLoadingStrategy == ChaptersLoadingStrategy.ONLY_FIRST) {
+		} else if (chaptersLoadingStrategy == ChaptersLoadingStrategy.ONLY_FIRST && source.getChaptersNumber() > 0) {
 		  target.setChapters(chapterMapper.toChapterResponseList(source.getChapters().subList(0, 1)));
     }
 
@@ -51,13 +52,7 @@ public class StoryMapper {
 	}
 
 	public List<StoryResponse> toStoryResponseList(List<Story> source, ChaptersLoadingStrategy chaptersLoadingStrategy) {
-		List<StoryResponse> target = new ArrayList<>();
-
-		for (Story story : source) {
-			target.add(toStoryResponse(story, chaptersLoadingStrategy));
-		}
-
-		return target;
+		return source.stream().map(story -> toStoryResponse(story, chaptersLoadingStrategy)).collect(toList());
 	}
 
 	public Story toStory(StoryRequest source) {

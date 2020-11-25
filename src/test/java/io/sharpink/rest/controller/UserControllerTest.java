@@ -1,130 +1,196 @@
 package io.sharpink.rest.controller;
 
-import io.sharpink.rest.dto.request.user.UserPatchRequest;
+import io.sharpink.SharpInkBackendApplication;
+import io.sharpink.persistence.dao.story.StoryDao;
+import io.sharpink.persistence.dao.user.UserDao;
+import io.sharpink.persistence.entity.story.Story;
+import io.sharpink.persistence.entity.user.User;
 import io.sharpink.rest.dto.response.story.StoryResponse;
 import io.sharpink.rest.dto.response.user.UserResponse;
-import io.sharpink.rest.dto.shared.user.preferences.UserPreferencesDto;
 import io.sharpink.rest.exception.CustomApiError;
 import io.sharpink.rest.exception.MissingEntity;
-import io.sharpink.rest.exception.NotFound404Exception;
-import io.sharpink.service.UserService;
+import io.sharpink.util.json.JsonUtil;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.RandomUtils;
+import lombok.NoArgsConstructor;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Collections;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
-import static io.sharpink.rest.controller.UserMockUtil.USER_RESPONSE_MOCK;
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith(SpringExtension.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, classes = SharpInkBackendApplication.class)
+@AutoConfigureMockMvc
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class UserControllerTest {
 
-  @Mock
-  UserService userServiceMock;
+  @Autowired private MockMvc mockMvc;
+  @Autowired private UserDao userDao;
+  @Autowired private StoryDao storyDao;
 
-  @InjectMocks
-  UserController userController = new UserController(userServiceMock);
+  User batman;
+  User john;
 
-  @Test
-  public void getUsers() {
-    // given
-    when(userServiceMock.getAllUsers()).thenReturn(Collections.singletonList(USER_RESPONSE_MOCK));
+  Story story1_Gotham_by_night;
+  Story story2_Ode_to_my_Bat_family;
+  Story story3_Superman_is_gay;
 
-    // when
-    List<UserResponse> users = userController.getUsers();
+  @BeforeAll
+  void init() {
+    batman = User.builder().id(1L).nickname("Batman").build();
+    john = User.builder().id(2L).nickname("John Doe").build();
 
-    // then
-    verify(userServiceMock).getAllUsers();
-    assertEquals(1, users.size());
-    assertEquals(1L, users.get(0).getId());
-    assertEquals("Batman", users.get(0).getNickname());
-    assertEquals("dark-knight@gotham.com", users.get(0).getEmail());
+    asList(batman, john).forEach(userDao::save);
+
+    story1_Gotham_by_night = Story.builder()
+      .id(1L)
+      .author(batman)
+      .title("Gotham by night")
+      .lastModificationDate(LocalDateTime.now())
+      .build();
+    story2_Ode_to_my_Bat_family = Story.builder()
+      .id(2L)
+      .author(batman)
+      .title("Ode to my Bat-family")
+      .lastModificationDate(LocalDateTime.now().minusDays(1))
+      .build();
+    story3_Superman_is_gay = Story.builder()
+      .id(3L)
+      .author(batman)
+      .title("Superman is gay")
+      .lastModificationDate(LocalDateTime.now().minusDays(2))
+      .build();
+
+    asList(story1_Gotham_by_night, story2_Ode_to_my_Bat_family, story3_Superman_is_gay).forEach(storyDao::save);
+  }
+
+  @AfterAll
+  void tearDown() {
+    userDao.deleteAll();
   }
 
   @Test
-  public void getUser_UserExists() {
-    // given
-    when(userServiceMock.getUser(anyLong())).thenReturn(USER_RESPONSE_MOCK);
-
+  public void getUsers() throws Exception {
     // when
-    Long id = RandomUtils.nextLong();
-    ResponseEntity<?> responseEntity = userController.getUser(id);
+    String jsonResult = mockMvc.perform(get("/users"))
+      .andExpect(status().isOk())
+      .andReturn()
+      .getResponse()
+      .getContentAsString();
 
     // then
-    ArgumentCaptor<Long> idArgumentCaptor = ArgumentCaptor.forClass(Long.class);
-    verify(userServiceMock).getUser(idArgumentCaptor.capture());
-    assertEquals(id, idArgumentCaptor.getValue());
-
-    assertThat(responseEntity.getBody()).isInstanceOf(UserResponse.class);
-    UserResponse userResponse = (UserResponse) responseEntity.getBody();
-    AssertableUserResponse assertableUserResponse = buildAssertableUserResponse(userResponse);
-    assertThat(assertableUserResponse).isEqualTo(buildAssertableUserResponse(USER_RESPONSE_MOCK));
+    List<UserResponse> userResponses = JsonUtil.fromJsonArray(jsonResult, UserResponse.class);
+    assertThat(userResponses.size()).isEqualTo(2);
+    AssertableUser expectedUserBatman = buildAssertableUser(batman);
+    AssertableUser expectedUserJohn = buildAssertableUser(john);
+    AssertableUser user1 = buildAssertableUser(userResponses.get(0));
+    AssertableUser user2 = buildAssertableUser(userResponses.get(1));
+    assertThat(user1).isEqualTo(expectedUserBatman);
+    assertThat(user2).isEqualTo(expectedUserJohn);
 
   }
 
   @Test
-  public void getUser_UserDoesNotExist() {
-    // given
-    NotFound404Exception notFound404ExceptionMock = new NotFound404Exception(MissingEntity.USER, RandomStringUtils
-      .randomAlphabetic(100));
-    when(userServiceMock.getUser(anyLong())).thenThrow(notFound404ExceptionMock);
-
+  public void getUser_given_existing_id_then_return_user() throws Exception {
     // when
-    Long id = RandomUtils.nextLong();
-    ResponseEntity<?> responseEntity = userController.getUser(id);
+    Long id = 1L;
+    String jsonResult = mockMvc.perform(get("/users/" + id))
+      .andExpect(status().isOk())
+      .andReturn()
+      .getResponse()
+      .getContentAsString();
+
 
     // then
-    ArgumentCaptor<Long> idArgumentCaptor = ArgumentCaptor.forClass(Long.class);
-    verify(userServiceMock).getUser(idArgumentCaptor.capture());
-    assertEquals(id, idArgumentCaptor.getValue());
-
-    assertThat(responseEntity.getBody()).isInstanceOf(CustomApiError.class);
-    assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    CustomApiError customApiError = (CustomApiError) responseEntity.getBody();
-    assertThat(customApiError.getCode()).isEqualTo(notFound404ExceptionMock.getReason().toString());
-    assertThat(customApiError.getMessage()).isEqualTo(notFound404ExceptionMock.getMessage());
+    AssertableUser user = JsonUtil.fromJson(jsonResult, AssertableUser.class);
+    AssertableUser expectedUserBatman = buildAssertableUser(batman);
+    assertThat(user).isEqualTo(expectedUserBatman);
   }
 
   @Test
-  public void getStories() {
-
-    // given
-    // a mock list with a random size of 0 to 4 items
-    List<StoryResponse> storyListMock = IntStream.range(0, RandomUtils.nextInt(0, 5))
-      .mapToObj(i -> new StoryResponse())
-      .collect(Collectors.toList());
-    when(userServiceMock.getStories(anyLong())).thenReturn(storyListMock);
-
+  public void getUser_given_non_existing_id_then_return_error_response() throws Exception {
     // when
-    Long id = RandomUtils.nextLong();
-    List<StoryResponse> stories = userController.getStories(id);
+    Long id = 3L;
+    String jsonResult = mockMvc.perform(get("/users/" + id))
+      .andExpect(status().isNotFound())
+      .andReturn()
+      .getResponse()
+      .getContentAsString();
 
     // then
-    ArgumentCaptor<Long> idArgumentCaptor = ArgumentCaptor.forClass(Long.class);
-    verify(userServiceMock).getStories(idArgumentCaptor.capture());
-    assertEquals(id, idArgumentCaptor.getValue());
-    assertThat(stories).isEqualTo(storyListMock);
+    CustomApiError customApiError = JsonUtil.fromJson(jsonResult, CustomApiError.class);
+    assertThat(customApiError.getCode()).isEqualTo(MissingEntity.USER.name());
+    assertThat(customApiError.getMessage()).isEqualTo("User not found for id=" + id);
   }
+
+  @Test
+  public void getStories_given_existing_user_then_return_his_stories() throws Exception {
+    // when
+    Long id = 1L;
+    String jsonResult = mockMvc.perform(get("/users/" + id + "/stories"))
+      .andExpect(status().isOk())
+      .andReturn()
+      .getResponse()
+      .getContentAsString();
+
+    // then
+    List<StoryResponse> storyResponses = JsonUtil.fromJsonArray(jsonResult, StoryResponse.class);
+    assertThat(storyResponses.size()).isEqualTo(3);
+    AssertableStory expectedStory1_Gotham_by_night = buildAssertableStory(story1_Gotham_by_night);
+    AssertableStory expectedStory2_Ode_to_my_Bat_family = buildAssertableStory(story2_Ode_to_my_Bat_family);
+    AssertableStory expectedStory3_Superman_is_gay = buildAssertableStory(story3_Superman_is_gay);
+    AssertableStory story1 = buildAssertableStory(storyResponses.get(0));
+    AssertableStory story2 = buildAssertableStory(storyResponses.get(1));
+    AssertableStory story3 = buildAssertableStory(storyResponses.get(2));
+    assertThat(story1).isEqualTo(expectedStory1_Gotham_by_night);
+    assertThat(story2).isEqualTo(expectedStory2_Ode_to_my_Bat_family);
+    assertThat(story3).isEqualTo(expectedStory3_Superman_is_gay);
+  }
+
+  @Test
+  public void getStories_given_existing_user_without_stories_then_return_empty_list() throws Exception {
+    // when
+    Long id = 2L;
+    mockMvc.perform(get("/users/" + id + "/stories")).andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(0)));
+  }
+
+  @Test
+  public void getStories_given_non_existing_user_then_return_error_response() throws Exception {
+    // when
+    Long id = 42L;
+    String jsonResult = mockMvc.perform(get("/users/" + id + "/stories"))
+      .andExpect(status().isNotFound())
+      .andReturn()
+      .getResponse()
+      .getContentAsString();
+
+    // then
+    CustomApiError customApiError = JsonUtil.fromJson(jsonResult, CustomApiError.class);
+    assertThat(customApiError.getCode()).isEqualTo(MissingEntity.USER.name());
+    assertThat(customApiError.getMessage()).isEqualTo("User not found for id=" + id);
+  }
+
+  // TODO tests des autres méthodes de UserController
+
+  /*
 
   @Test
   public void updateUserProfile() {
@@ -179,19 +245,50 @@ class UserControllerTest {
     assertTrue(userPreferencesDto == userPreferencesDtoAC.getValue());
     assertThat(updatedUserPreferencesDto).isNotNull();
   }
+  */
 
-  private AssertableUserResponse buildAssertableUserResponse(UserResponse userResponse) {
-    return AssertableUserResponse.builder()
-      .id(userResponse.getId())
-      .nickname(userResponse.getNickname())
+  private AssertableUser buildAssertableUser(User user) {
+    return AssertableUser.builder().id(user.getId()).nickname(user.getNickname()).build();
+  }
+
+  private AssertableUser buildAssertableUser(UserResponse userResponse) {
+    return AssertableUser.builder().id(userResponse.getId()).nickname(userResponse.getNickname()).build();
+  }
+
+  private AssertableStory buildAssertableStory(Story story) {
+    return AssertableStory.builder()
+      .id(story.getId())
+      .author(AssertableUser.builder().id(story.getAuthor().getId()).build())
+      .title(story.getTitle())
+      .build();
+  }
+
+  private AssertableStory buildAssertableStory(StoryResponse storyResponse) {
+    return AssertableStory.builder()
+      .id(storyResponse.getId())
+      .author(AssertableUser.builder().id(storyResponse.getAuthorId()).build())
+      .title(storyResponse.getTitle())
       .build();
   }
 
   @Getter
   @Builder
   @EqualsAndHashCode
-  private static class AssertableUserResponse {
+  @NoArgsConstructor
+  @AllArgsConstructor
+  private static class AssertableUser {
     Long id;
     String nickname;
+  }
+
+  @Getter
+  @Builder
+  @EqualsAndHashCode
+  @NoArgsConstructor
+  @AllArgsConstructor
+  private static class AssertableStory {
+    Long id;
+    AssertableUser author;
+    String title;
   }
 }

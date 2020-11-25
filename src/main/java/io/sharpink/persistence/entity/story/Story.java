@@ -3,6 +3,8 @@ package io.sharpink.persistence.entity.story;
 
 import io.sharpink.persistence.entity.forum.Thread;
 import io.sharpink.persistence.entity.user.User;
+import io.sharpink.shared.story.StoryStatus;
+import io.sharpink.shared.story.StoryType;
 import lombok.*;
 import org.hibernate.annotations.LazyCollection;
 import org.hibernate.annotations.LazyCollectionOption;

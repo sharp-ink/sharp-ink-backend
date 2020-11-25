@@ -1,7 +1,7 @@
 package io.sharpink.rest.dto.request.story;
 
-import io.sharpink.persistence.entity.story.StoryStatus;
-import io.sharpink.persistence.entity.story.StoryType;
+import io.sharpink.shared.story.StoryStatus;
+import io.sharpink.shared.story.StoryType;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 

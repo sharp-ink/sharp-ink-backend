@@ -3,6 +3,7 @@ package io.sharpink.rest.controller;
 import io.sharpink.rest.dto.request.story.ChapterRequest;
 import io.sharpink.rest.dto.request.story.StoryPatchRequest;
 import io.sharpink.rest.dto.request.story.StoryRequest;
+import io.sharpink.rest.dto.request.story.search.StorySearch;
 import io.sharpink.rest.dto.response.story.ChapterResponse;
 import io.sharpink.rest.dto.response.story.StoryResponse;
 import io.sharpink.rest.exception.CustomApiError;
@@ -30,7 +31,7 @@ public class StoryController {
   }
 
   /**
-   * Gets all {@code Story}.
+   * Gets all {@code Story} with given publication status.
    */
   @GetMapping("")
   public List<StoryResponse> getStories(@RequestParam(required = false) Boolean published) {
@@ -62,6 +63,11 @@ public class StoryController {
     } catch (UnprocessableEntity422Exception e) {
       return new ResponseEntity<>(new CustomApiError(e.getReason().name(), e.getMessage()), UNPROCESSABLE_ENTITY);
     }
+  }
+
+  @PostMapping("/search")
+  public List<StoryResponse> search(StorySearch storySearch) {
+    return storyService.searchStories(storySearch);
   }
 
   @PatchMapping("/{id}")

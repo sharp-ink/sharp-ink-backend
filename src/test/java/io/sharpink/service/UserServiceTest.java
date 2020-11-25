@@ -1,5 +1,6 @@
 package io.sharpink.service;
 
+import io.sharpink.UserMockUtil;
 import io.sharpink.mapper.story.StoryMapper;
 import io.sharpink.mapper.user.UserMapper;
 import io.sharpink.persistence.dao.user.UserDao;
@@ -11,7 +12,6 @@ import io.sharpink.persistence.entity.user.UserDetails;
 import io.sharpink.persistence.entity.user.UserPreferences;
 import io.sharpink.persistence.entity.user.preferences.Theme;
 import io.sharpink.rest.controller.StoryMockUtil;
-import io.sharpink.rest.controller.UserMockUtil;
 import io.sharpink.rest.dto.request.user.UserPatchRequest;
 import io.sharpink.rest.dto.response.story.StoryResponse;
 import io.sharpink.rest.dto.response.user.UserDetailsResponse;

@@ -1,9 +1,12 @@
 package io.sharpink.rest.controller;
 
+import io.sharpink.UserMockUtil;
 import io.sharpink.persistence.entity.story.Story;
-import io.sharpink.persistence.entity.story.StoryStatus;
-import io.sharpink.persistence.entity.story.StoryType;
 import io.sharpink.rest.dto.response.story.StoryResponse;
+import io.sharpink.shared.story.StoryStatus;
+import io.sharpink.shared.story.StoryType;
+
+import static java.util.Collections.emptyList;
 
 public class StoryMockUtil {
 
@@ -24,7 +27,9 @@ public class StoryMockUtil {
       .title("Hello world!")
       .type(StoryType.UNDETERMINED)
       .status(StoryStatus.PROGRESS)
-      .author(UserMockUtil.USER_MOCK)
+      .chaptersNumber(0)
+      .author(UserMockUtil.getUserMock())
+      .chapters(emptyList())
       .build();
   }
 

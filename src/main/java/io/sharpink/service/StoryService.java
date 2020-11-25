@@ -11,27 +11,36 @@ import io.sharpink.persistence.entity.story.Story;
 import io.sharpink.rest.dto.request.story.ChapterRequest;
 import io.sharpink.rest.dto.request.story.StoryPatchRequest;
 import io.sharpink.rest.dto.request.story.StoryRequest;
+import io.sharpink.rest.dto.request.story.search.Sort;
+import io.sharpink.rest.dto.request.story.search.StorySearch;
 import io.sharpink.rest.dto.response.story.ChapterResponse;
 import io.sharpink.rest.dto.response.story.StoryResponse;
 import io.sharpink.rest.exception.InternalError500Exception;
 import io.sharpink.rest.exception.NotFound404Exception;
 import io.sharpink.rest.exception.UnprocessableEntity422Exception;
 import io.sharpink.service.picture.PictureManagementService;
+import io.sharpink.shared.SortType;
+import io.sharpink.util.ComparatorUtil;
 import io.sharpink.util.picture.PictureUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
 import static io.sharpink.constant.Constants.USERS_PROFILE_PICTURES_PATH;
 import static io.sharpink.constant.Constants.USERS_PROFILE_PICTURES_WEB_URL;
+import static io.sharpink.persistence.dao.story.StoryDao.hasAuthorLike;
+import static io.sharpink.persistence.dao.story.StoryDao.hasTitleLike;
 import static io.sharpink.rest.exception.MissingEntity.CHAPTER;
 import static io.sharpink.rest.exception.UnprocessableEntity422ReasonEnum.TITLE_ALREADY_USED;
+import static io.sharpink.shared.SortType.isDefined;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
+import static org.springframework.data.jpa.domain.Specification.where;
 
 @Service
 public class StoryService {
@@ -67,7 +76,7 @@ public class StoryService {
       .filter(story -> published == null || story.isPublished() == published.booleanValue()) // keep only if given published status (or no published status specified)
       .collect(toList());
 
-    return storyMapper.toStoryResponseList(stories, ChaptersLoadingStrategy.ONLY_FIRST); // load only the first chapter (useful for preview)
+    return storyMapper.toStoryResponseList(stories, ChaptersLoadingStrategy.ONLY_FIRST);
   }
 
   /**
@@ -122,6 +131,25 @@ public class StoryService {
       story = storyDao.save(story);
       return story.getId(); // returns id of newly created entity
     }
+  }
+
+  /**
+   * Search stories by criteria, eventually applying filters and sorting.
+   *
+   * @param storySearch The criteria stories should match, including filters and sorting
+   * @return a list of stories matching the given criteria, with appropriate filters / sorting
+   */
+  public List<StoryResponse> searchStories(StorySearch storySearch) {
+    String title = storySearch.getCriteria().getTitle();
+    String authorName = storySearch.getCriteria().getAuthorName();
+
+    List<Story> stories = storyDao.findAll(where(hasTitleLike(title)).and(where(hasAuthorLike(authorName))));
+
+    if (storySearch.getSort() != null) {
+      applySorting(stories, storySearch.getSort());
+    }
+
+    return storyMapper.toStoryResponseList(stories, ChaptersLoadingStrategy.ONLY_FIRST);
   }
 
   /**
@@ -256,6 +284,26 @@ public class StoryService {
   private boolean storyWithSameTitleAlreadyExists(String title) {
     Optional<Story> storyOptional = storyDao.findByTitle(title);
     return storyOptional.isPresent();
+  }
+
+  protected void applySorting(List<Story> stories, Sort sort) {
+    Comparator<Story> comparator = ComparatorUtil.noOrder();
+
+    if (isDefined(sort.getAuthorName())) {
+      comparator = comparator.thenComparing(s -> s.getAuthor().getNickname());
+      if (sort.getTitle().equals(SortType.DESC)) {
+        comparator = comparator.reversed();
+      }
+    }
+
+    if (isDefined(sort.getTitle())) {
+      comparator = comparator.thenComparing(Story::getTitle);
+      if (sort.getTitle().equals(SortType.DESC)) {
+        comparator = comparator.reversed();
+      }
+    }
+
+    stories.sort(comparator);
   }
 
   private void shiftPositionsDown(List<Chapter> chapters, Long chapterPosition) {

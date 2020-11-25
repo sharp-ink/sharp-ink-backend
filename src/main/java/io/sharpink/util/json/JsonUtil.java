@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.List;
 
 @Slf4j
 public class JsonUtil {
@@ -16,6 +17,14 @@ public class JsonUtil {
     try {
       return MAPPER.readValue(json, classz);
     } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static <T> List<T> fromJsonArray(String json, Class<T> classz) {
+    try {
+      return MAPPER.readValue(json, MAPPER.getTypeFactory().constructCollectionType(List.class, classz));
+    } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
   }
